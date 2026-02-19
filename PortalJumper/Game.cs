@@ -19,12 +19,14 @@ namespace PortalJumper
 
         private void HandleInput()
         {
-            if (!Console.KeyAvailable) return;
-            var key = Console.ReadKey(true);
-
-            if (key.Key == ConsoleKey.Escape)
+            if (Console.KeyAvailable)
             {
-                isRunning = false;
+                var key = Console.ReadKey(true);
+
+                if (key.Key == ConsoleKey.Escape)
+                {
+                    isRunning = false;
+                }
             }
         }
 
