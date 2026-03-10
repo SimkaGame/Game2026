@@ -1,10 +1,9 @@
-namespace PortalJumper;
+using PortalJumper.Core;
 
 class Program
 {
     static void Main()
     {
-        var game = new Game();
-        game.Run();
+        GameManager.Instance.Run();
     }
 }
