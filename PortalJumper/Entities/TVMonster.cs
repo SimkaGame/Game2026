@@ -10,7 +10,6 @@ public class TVMonster : Monster
 
     public override void Move()
     {
-      
     }
 
     public override void Attack(Hero hero)
@@ -21,5 +20,12 @@ public class TVMonster : Monster
     public override string GetSymbol()
     {
         return "📺";
+    }
+
+    public override object Clone()
+    {
+        TVMonster clone = new TVMonster();
+        clone.Hp = this.Hp;
+        return clone;
     }
 }

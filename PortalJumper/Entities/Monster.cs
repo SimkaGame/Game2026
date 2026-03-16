@@ -2,9 +2,9 @@ using PortalJumper.Items;
 
 namespace PortalJumper.Entities;
 
-public abstract class Monster
+public abstract class Monster : ICloneable
 {
-    public string Name { get; protected set; }
+    public string Name { get; protected set; } = "";
     public int Hp { get; protected set; } = 10;
 
     public Inventory Inventory { get; set; } = new Inventory();
@@ -14,4 +14,6 @@ public abstract class Monster
     public abstract void Attack(Hero hero);
 
     public abstract string GetSymbol();
+
+    public abstract object Clone();
 }
