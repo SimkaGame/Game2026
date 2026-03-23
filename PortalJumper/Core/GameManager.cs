@@ -38,7 +38,6 @@ public class GameManager
     {
         Console.CursorVisible = false;
 
-        // Prototype
         Robot prototype = new Robot();
 
         Robot enemy1 = (Robot)prototype.Clone();
