@@ -1,5 +1,7 @@
 namespace PortalJumper.Core;
+
 using PortalJumper.Entities;
+using System.Linq;
 
 public class Cell
 {
@@ -17,7 +19,7 @@ public class Cell
 
     public void CollectAllRewards(Hero hero)
     {
-        foreach (var reward in Rewards)
+        foreach (var reward in Rewards.ToList())
             reward.Collect(hero);
 
         Rewards.Clear();

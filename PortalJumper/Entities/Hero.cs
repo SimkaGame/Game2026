@@ -1,11 +1,23 @@
-using PortalJumper.Items;
+using PortalJumper.Core;
 
 namespace PortalJumper.Entities;
 
-public class Hero
+public interface IAttackable
 {
-    public string Name { get; set; } = "";
+    int Hp { get; set; }
+    void TakeDamage(int damage);
+}
+
+public class Hero : IAttackable
+{
     public int Hp { get; set; } = 100;
     public int MaxHp { get; set; } = 100;
-    public Inventory Inventory { get; set; } = new Inventory();
+    public int Gold { get; set; } = 0;
+    public Position Position { get; set; }
+    public string GetSymbol() => "🤠";
+
+    public void TakeDamage(int damage)
+    {
+        Hp -= damage;
+    }
 }
