@@ -36,6 +36,8 @@ public class GameManager {
         monsters.Add(new Robot { Position = new Position(3, 10) });
         monsters.Add(new TVMonster { Position = new Position(10, 30) });
         coins.Add(new GoldReward(15) { Position = GetRandomEmptyPosition() });
+
+        monsters.Add(new TurretAdapter(new Position(5, 20)));
         
         shieldPos = GetRandomEmptyPosition();
         windPos = GetRandomEmptyPosition();
