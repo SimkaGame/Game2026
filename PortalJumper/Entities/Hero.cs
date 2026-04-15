@@ -1,12 +1,7 @@
 using PortalJumper.Core;
+using PortalJumper.Core.Interfaces;
 
 namespace PortalJumper.Entities;
-
-public interface IAttackable
-{
-    int Hp { get; set; }
-    void TakeDamage(int damage);
-}
 
 public class Hero : IAttackable
 {

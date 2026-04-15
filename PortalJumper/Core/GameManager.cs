@@ -4,8 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Linq;
 using PortalJumper.Entities;
 using PortalJumper.Maps;
+using PortalJumper.Core.Interfaces;
 
 public class GameManager {
     private static GameManager? instance;
@@ -35,10 +37,9 @@ public class GameManager {
 
         monsters.Add(new Robot { Position = new Position(3, 10) });
         monsters.Add(new TVMonster { Position = new Position(10, 30) });
-        coins.Add(new GoldReward(15) { Position = GetRandomEmptyPosition() });
-
         monsters.Add(new TurretAdapter(new Position(5, 20)));
         
+        coins.Add(new GoldReward(15) { Position = GetRandomEmptyPosition() });
         shieldPos = GetRandomEmptyPosition();
         windPos = GetRandomEmptyPosition();
     }
@@ -48,10 +49,7 @@ public class GameManager {
             int y = rng.Next(1, MapHeight - 1);
             int x = rng.Next(1, MapWidth - 1);
             Position pos = new Position(y, x);
-
-            if (world.CanMoveTo(pos) && 
-                (hero == null || (hero.Position.X != x && hero.Position.Y != y)) &&
-                !monsters.Exists(m => m.Position.X == x && m.Position.Y == y)) {
+            if (world.CanMoveTo(pos) && (hero == null || (hero.Position.X != x && hero.Position.Y != y)) && !monsters.Exists(m => m.Position.X == x && m.Position.Y == y)) {
                 return pos;
             }
         }
@@ -62,22 +60,21 @@ public class GameManager {
         Console.OutputEncoding = Encoding.UTF8;
         Console.Clear();
         Console.CursorVisible = false;
-
-        while (isRunning) 
-        {
+        while (isRunning) {
             if (Console.KeyAvailable) HandleInput();
             Update();
             Render();
             Thread.Sleep(30);
         }
+        ShowGameOverScreen();
+    }
 
+    private void ShowGameOverScreen() {
         Console.Clear();
-        Console.SetCursorPosition(0, 0);
         Console.WriteLine("======================================");
         Console.WriteLine("           ИГРА ОКОНЧЕНА!             ");
         Console.WriteLine($"      Собрано золота: {hero.Gold}     ");
         Console.WriteLine("======================================");
-        Console.WriteLine("\nНажмите любую клавишу для выхода...");
         Console.ReadKey();
     }
 
@@ -85,27 +82,20 @@ public class GameManager {
         var key = Console.ReadKey(true).Key;
         int dy = 0, dx = 0;
         int step = IsActive<WindDecorator>() ? 2 : 1;
-
         if (key == ConsoleKey.W) dy = -step;
         else if (key == ConsoleKey.S) dy = step;
         else if (key == ConsoleKey.A) dx = -step;
         else if (key == ConsoleKey.D) dx = step;
         else if (key == ConsoleKey.Escape) isRunning = false;
-
         if (dx == 0 && dy == 0) return;
-
         Position nextPos = new Position(hero.Position.Y + dy, hero.Position.X + dx);
-        if (world.CanMoveTo(nextPos) && !monsters.Exists(m => m.Position.X == nextPos.X && m.Position.Y == nextPos.Y)) {
-            hero.Position = nextPos;
-        }
+        if (world.CanMoveTo(nextPos) && !monsters.Exists(m => m.Position.X == nextPos.X && m.Position.Y == nextPos.Y)) hero.Position = nextPos;
     }
 
     private void Update() {
         if (DateTime.Now > shieldExpiry && IsActive<ShieldDecorator>()) RemoveDecorator<ShieldDecorator>();
         if (DateTime.Now > windExpiry && IsActive<WindDecorator>()) RemoveDecorator<WindDecorator>();
-        
         CheckInteractions();
-
         if (hero.Hp <= 0) isRunning = false;
     }
 
@@ -120,97 +110,59 @@ public class GameManager {
             windExpiry = DateTime.Now.AddSeconds(10);
             activeTarget = new WindDecorator(activeTarget);
         }
-
         for (int i = coins.Count - 1; i >= 0; i--) {
             if (IsNear(coins[i].Position, hero.Position)) {
                 hero.Gold += coins[i].Amount;
                 coins.RemoveAt(i);
             }
         }
-
-        foreach (var m in monsters) {
-            if (IsNear(m.Position, hero.Position)) m.Attack(activeTarget);
-        }
+        foreach (var m in monsters) if (IsNear(m.Position, hero.Position)) m.Attack(activeTarget);
     }
 
-    private void Render()
-    {
+    private void Render() {
         Console.SetCursorPosition(0, 0);
         StringBuilder sb = new StringBuilder();
-
         sb.AppendLine(new string('#', MapWidth * 2));
-
-        for (int y = 0; y < MapHeight; y++)
-        {
-            for (int x = 0; x < MapWidth; x++)
-            {
-                if (x == 0 || x == MapWidth - 1)
-                {
-                    sb.Append("##");
-                    continue;
-                }
-
-                if (hero.Position.Y == y && hero.Position.X == x)
-                {
-                    sb.Append("🤠"); 
-                }
-                else if (monsters.Exists(m => m.Position.Y == y && m.Position.X == x))
-                {
-                    var m = monsters.Find(mo => mo.Position.Y == y && mo.Position.X == x);
-                    sb.Append(m?.GetSymbol() ?? "  "); 
-                }
-                else if (shieldPos.HasValue && shieldPos.Value.Y == y && shieldPos.Value.X == x)
-                {
-                    sb.Append("🛡️ "); 
-                }
-                else if (windPos.HasValue && windPos.Value.Y == y && windPos.Value.X == x)
-                {
-                    sb.Append("🌬️ "); 
-                }
-                else if (coins.Exists(c => c.Position.Y == y && c.Position.X == x))
-                {
-                    sb.Append("💰"); 
-                }
-                else
-                {
-                    sb.Append(world.CanMoveTo(new Position(y, x)) ? "  " : "##");
-                }
+        for (int y = 0; y < MapHeight; y++) {
+            for (int x = 0; x < MapWidth; x++) {
+                sb.Append(GetSymbolAt(x, y));
             }
             sb.AppendLine();
         }
-
         sb.AppendLine(new string('#', MapWidth * 2));
-        sb.AppendLine($"HP: {hero.Hp} | Золото: {hero.Gold}".PadRight(MapWidth * 2));
-        
-        StringBuilder effectsLine = new StringBuilder("Эффекты: ");
-        
-        if (DateTime.Now < shieldExpiry) 
-        {
-            int shieldSec = (int)(shieldExpiry - DateTime.Now).TotalSeconds + 1;
-            effectsLine.Append($"[Щит 🛡️: {shieldSec}с] ");
-        }
-        
-        if (DateTime.Now < windExpiry) 
-        {
-            int windSec = (int)(windExpiry - DateTime.Now).TotalSeconds + 1;
-            effectsLine.Append($"[Ветер 🌬️: {windSec}с] ");
-        }
-
-        if (DateTime.Now >= shieldExpiry && DateTime.Now >= windExpiry)
-        {
-            effectsLine.Append("нет");
-        }
-
-        sb.AppendLine(effectsLine.ToString().PadRight(MapWidth * 2));
+        RenderHUD(sb);
         Console.Write(sb.ToString());
     }
 
-    private bool IsNear(Position p1, Position p2) 
-    {
-        int dx = Math.Abs(p1.X - p2.X);
-        int dy = Math.Abs(p1.Y - p2.Y);
-        return (dx + dy) <= 1;
+    private string GetSymbolAt(int x, int y) {
+        if (x == 0 || x == MapWidth - 1) return "##";
+        
+        if (hero.Position.Y == y && hero.Position.X == x) return "🤠";
+        
+        var m = monsters.Find(mo => mo.Position.Y == y && mo.Position.X == x);
+        if (m != null) {
+            string s = m.GetSymbol();
+            if (s == "🛰") return s + " ";
+            return s.Length > 1 ? s : s + " ";
+        }
+
+        if (shieldPos.HasValue && shieldPos.Value.Y == y && shieldPos.Value.X == x) return "🛡️ ";
+        if (windPos.HasValue && windPos.Value.Y == y && windPos.Value.X == x) return "🌬️ ";
+        if (coins.Exists(c => c.Position.Y == y && c.Position.X == x)) return "💰";
+
+        return world.CanMoveTo(new Position(y, x)) ? "  " : "##";
     }
+
+    private void RenderHUD(StringBuilder sb) {
+        sb.AppendLine($"HP: {hero.Hp} | Золото: {hero.Gold}".PadRight(MapWidth * 2));
+        StringBuilder effectsLine = new StringBuilder("Эффекты: ");
+        if (DateTime.Now < shieldExpiry) effectsLine.Append($"[Щит 🛡️: {(int)(shieldExpiry - DateTime.Now).TotalSeconds + 1}с] ");
+        if (DateTime.Now < windExpiry) effectsLine.Append($"[Ветер 🌬️: {(int)(windExpiry - DateTime.Now).TotalSeconds + 1}с] ");
+        if (DateTime.Now >= shieldExpiry && DateTime.Now >= windExpiry) effectsLine.Append("нет");
+        sb.AppendLine(effectsLine.ToString().PadRight(MapWidth * 2));
+    }
+
+    private bool IsNear(Position p1, Position p2) => Math.Abs(p1.X - p2.X) + Math.Abs(p1.Y - p2.Y) <= 1;
 
     private bool IsActive<T>() {
         var curr = activeTarget;
@@ -237,8 +189,6 @@ public class GameManager {
     private IAttackable Unwrap<T>(IAttackable inner) {
         if (inner is ShieldDecorator sd && sd is not T) return sd;
         if (inner is WindDecorator wd && wd is not T) return wd;
-        if (inner is ShieldDecorator sd2) return sd2.GetInner();
-        if (inner is WindDecorator wd2) return wd2.GetInner();
         return hero;
     }
 }
