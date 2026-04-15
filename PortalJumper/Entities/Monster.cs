@@ -1,18 +1,16 @@
 using PortalJumper.Core;
-using System;
+using PortalJumper.Core.Interfaces;
 
 namespace PortalJumper.Entities;
 
-public abstract class Monster : ICloneable
+public abstract class Monster 
 {
-    public string Name { get; protected set; } = "";
-    public int Hp { get; set; } = 10;
-    public Position Position { get; set; } = new Position(0, 0);
-
-    public abstract void Move();
+    public Position Position { get; set; }
+    public abstract string GetSymbol();
     public abstract void Attack(IAttackable target);
     
-    public abstract string GetSymbol(); 
-    
-    public abstract object Clone();
+    public virtual void Move()
+    {
+        
+    }
 }
