@@ -1,26 +1,19 @@
+using PortalJumper.Core;
+using PortalJumper.Core.Interfaces;
+
 namespace PortalJumper.Entities;
 
-using System;
-using PortalJumper.Core;
-
-public class TurretAdapter : Monster {
-    private readonly ExternalLaserTurret _externalTurret;
-
-    public TurretAdapter(Position pos) {
-        _externalTurret = new ExternalLaserTurret();
-        this.Position = pos;
+public class TurretAdapter : Monster
+{
+    public TurretAdapter(Position pos)
+    {
+        Position = pos;
     }
 
-    public override void Attack(IAttackable target) {
-        _externalTurret.Shoot(target);
-    }
+    public override string GetSymbol() => "🛰";
 
-    public override string GetSymbol() => "🛰 ";
-
-    public override void Move() {
-    }
-
-    public override Monster Clone() {
-        return new TurretAdapter(this.Position);
+    public override void Attack(IAttackable target)
+    {
+        target.TakeDamage(GameConfig.TurretDamage);
     }
 }

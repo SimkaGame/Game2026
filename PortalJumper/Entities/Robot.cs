@@ -1,18 +1,19 @@
 using PortalJumper.Core;
+using PortalJumper.Core.Interfaces;
 
 namespace PortalJumper.Entities;
 
-public class Robot : Monster
+public class Robot : Monster 
 {
-    public Robot() { Name = "Робот"; Hp = 25; }
+    public override string GetSymbol() => "🤖";
 
-    public override void Move() { }
-    public override void Attack(IAttackable target) => target.TakeDamage(5);
-    
-    public override string GetSymbol() => "🤖"; 
-
-    public override object Clone()
+    public override void Attack(IAttackable target)
     {
-        return new Robot { Hp = this.Hp, Position = this.Position };
+        target.TakeDamage(GameConfig.RobotDamage);
+    }
+
+    public override void Move() 
+    {
+        
     }
 }

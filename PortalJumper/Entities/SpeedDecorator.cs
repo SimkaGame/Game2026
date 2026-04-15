@@ -1,4 +1,5 @@
 namespace PortalJumper.Entities;
+using PortalJumper.Core.Interfaces;
 
 public class WindDecorator : IAttackable
 {
