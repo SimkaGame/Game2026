@@ -1,19 +1,18 @@
 using PortalJumper.Core;
 using PortalJumper.Core.Interfaces;
+using PortalJumper.Core.Strategies;
 
 namespace PortalJumper.Entities;
 
 public class TVMonster : Monster 
 {
-    public override string GetSymbol() => "📺";
-
-    public override void Attack(IAttackable target)
+    public TVMonster() : base(new SimpleAttack())
     {
-        target.TakeDamage(GameConfig.TVMonsterDamage);
     }
+
+    public override string GetSymbol() => "📺";
 
     public override void Move()
     {
-        
     }
 }
