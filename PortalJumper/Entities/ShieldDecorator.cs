@@ -1,3 +1,4 @@
+using System;
 using PortalJumper.Core.Interfaces;
 
 namespace PortalJumper.Entities;
@@ -10,6 +11,18 @@ public class ShieldDecorator : IAttackable
     { 
         get => _inner.Hp; 
         set => _inner.Hp = value; 
+    }
+
+    public int MaxHp 
+    { 
+        get => _inner.MaxHp; 
+        set => _inner.MaxHp = value; 
+    }
+
+    public event Action<int, int> OnHealthChanged
+    {
+        add => _inner.OnHealthChanged += value;
+        remove => _inner.OnHealthChanged -= value;
     }
 
     public ShieldDecorator(IAttackable entity) => _inner = entity;

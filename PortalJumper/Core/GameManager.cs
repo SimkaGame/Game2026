@@ -19,6 +19,7 @@ public class GameManager {
     private readonly Random rng = new Random();
 
     private Hero hero;
+    private ConsoleHUD _hud;
     private IAttackable activeTarget;
     private WorldMap world;
     private readonly List<Monster> monsters = new();
@@ -32,7 +33,12 @@ public class GameManager {
     private GameManager() {
         world = new WorldMap();
         world.Initialize(MapWidth, MapHeight);
+        
         hero = new Hero { Position = new Position(7, 15) };
+        
+        _hud = new ConsoleHUD();
+        _hud.Bind(hero);
+
         activeTarget = hero;
 
         monsters.Add(new Robot { Position = new Position(3, 10) });
@@ -81,7 +87,7 @@ public class GameManager {
     private void HandleInput() {
         var key = Console.ReadKey(true).Key;
         int dy = 0, dx = 0;
-        int step = IsActive<WindDecorator>() ? 2 : 1;
+        int step = IsActive<SpeedDecorator>() ? 2 : 1;
         if (key == ConsoleKey.W) dy = -step;
         else if (key == ConsoleKey.S) dy = step;
         else if (key == ConsoleKey.A) dx = -step;
@@ -94,7 +100,7 @@ public class GameManager {
 
     private void Update() {
         if (DateTime.Now > shieldExpiry && IsActive<ShieldDecorator>()) RemoveDecorator<ShieldDecorator>();
-        if (DateTime.Now > windExpiry && IsActive<WindDecorator>()) RemoveDecorator<WindDecorator>();
+        if (DateTime.Now > windExpiry && IsActive<SpeedDecorator>()) RemoveDecorator<SpeedDecorator>();
         CheckInteractions();
         if (hero.Hp <= 0) isRunning = false;
     }
@@ -108,7 +114,7 @@ public class GameManager {
         if (windPos.HasValue && IsNear(hero.Position, windPos.Value)) {
             windPos = null;
             windExpiry = DateTime.Now.AddSeconds(10);
-            activeTarget = new WindDecorator(activeTarget);
+            activeTarget = new SpeedDecorator(activeTarget);
         }
         for (int i = coins.Count - 1; i >= 0; i--) {
             if (IsNear(coins[i].Position, hero.Position)) {
@@ -169,7 +175,7 @@ public class GameManager {
         while (curr != null) {
             if (curr is T) return true;
             if (curr is ShieldDecorator sd) curr = sd.GetInner();
-            else if (curr is WindDecorator wd) curr = wd.GetInner();
+            else if (curr is SpeedDecorator wd) curr = wd.GetInner();
             else break;
         }
         return false;
@@ -178,17 +184,17 @@ public class GameManager {
     private void RemoveDecorator<T>() {
         if (activeTarget is T) {
             if (activeTarget is ShieldDecorator sd) activeTarget = sd.GetInner();
-            else if (activeTarget is WindDecorator wd) activeTarget = wd.GetInner();
+            else if (activeTarget is SpeedDecorator wd) activeTarget = wd.GetInner();
         } else if (activeTarget is ShieldDecorator sd && sd.GetInner() is T) {
             activeTarget = new ShieldDecorator(Unwrap<T>(sd.GetInner()));
-        } else if (activeTarget is WindDecorator wd && wd.GetInner() is T) {
-            activeTarget = new WindDecorator(Unwrap<T>(wd.GetInner()));
+        } else if (activeTarget is SpeedDecorator wd && wd.GetInner() is T) {
+            activeTarget = new SpeedDecorator(Unwrap<T>(wd.GetInner()));
         }
     }
 
     private IAttackable Unwrap<T>(IAttackable inner) {
         if (inner is ShieldDecorator sd && sd is not T) return sd;
-        if (inner is WindDecorator wd && wd is not T) return wd;
+        if (inner is SpeedDecorator wd && wd is not T) return wd;
         return hero;
     }
 }
