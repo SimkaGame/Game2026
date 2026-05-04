@@ -4,15 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
-using System.Linq;
 using PortalJumper.Entities;
 using PortalJumper.Maps;
 using PortalJumper.Core.Interfaces;
+using PortalJumper.Core.States;
 
 public class GameManager {
     private static GameManager? instance;
     public static GameManager Instance => instance ??= new GameManager();
 
+    private IGameState _currentState;
     private bool isRunning = true;
     private readonly int MapWidth = 40; 
     private readonly int MapHeight = 15; 
@@ -48,61 +49,51 @@ public class GameManager {
         coins.Add(new GoldReward(15) { Position = GetRandomEmptyPosition() });
         shieldPos = GetRandomEmptyPosition();
         windPos = GetRandomEmptyPosition();
+
+        _currentState = new GamePlayState(this);
     }
 
-    private Position GetRandomEmptyPosition() {
-        while (true) {
-            int y = rng.Next(1, MapHeight - 1);
-            int x = rng.Next(1, MapWidth - 1);
-            Position pos = new Position(y, x);
-            if (world.CanMoveTo(pos) && (hero == null || (hero.Position.X != x && hero.Position.Y != y)) && !monsters.Exists(m => m.Position.X == x && m.Position.Y == y)) {
-                return pos;
-            }
-        }
-    }
+    public void SetState(IGameState newState) => _currentState = newState;
+    
+    public int GetHeroHp() => hero.Hp;
+    
+    public int GetHeroGold() => hero.Gold;
 
-    public void Run() 
-    {
+    public void Run() {
         Console.OutputEncoding = Encoding.UTF8;
         Console.Clear();
         Console.CursorVisible = false;
+        
         while (isRunning) {
-            if (Console.KeyAvailable) HandleInput();
-            Update();
-            Render();
+            if (Console.KeyAvailable) _currentState.HandleInput();
+            _currentState.Update();
+            _currentState.Render();
             Thread.Sleep(30);
         }
-        ShowGameOverScreen();
     }
 
-    private void ShowGameOverScreen() {
-        Console.Clear();
-        Console.WriteLine("======================================");
-        Console.WriteLine("           ИГРА ОКОНЧЕНА!             ");
-        Console.WriteLine($"      Собрано золота: {hero.Gold}     ");
-        Console.WriteLine("======================================");
-        Console.ReadKey();
-    }
-
-    private void HandleInput() {
-        var key = Console.ReadKey(true).Key;
+    public void ProcessHeroInput(ConsoleKey key) {
         int dy = 0, dx = 0;
         int step = IsActive<SpeedDecorator>() ? 2 : 1;
+        
         if (key == ConsoleKey.W) dy = -step;
         else if (key == ConsoleKey.S) dy = step;
         else if (key == ConsoleKey.A) dx = -step;
         else if (key == ConsoleKey.D) dx = step;
-        else if (key == ConsoleKey.Escape) isRunning = false;
+        
         if (dx == 0 && dy == 0) return;
+        
         Position nextPos = new Position(hero.Position.Y + dy, hero.Position.X + dx);
-        if (world.CanMoveTo(nextPos) && !monsters.Exists(m => m.Position.X == nextPos.X && m.Position.Y == nextPos.Y)) hero.Position = nextPos;
+        if (world.CanMoveTo(nextPos) && !monsters.Exists(m => m.Position.X == nextPos.X && m.Position.Y == nextPos.Y)) {
+            hero.Position = nextPos;
+        }
     }
 
-    private void Update() {
+    public void UpdateGameLogic() {
         if (DateTime.Now > shieldExpiry && IsActive<ShieldDecorator>()) RemoveDecorator<ShieldDecorator>();
         if (DateTime.Now > windExpiry && IsActive<SpeedDecorator>()) RemoveDecorator<SpeedDecorator>();
+        
         CheckInteractions();
-        if (hero.Hp <= 0) isRunning = false;
     }
 
     private void CheckInteractions() {
@@ -122,10 +113,12 @@ public class GameManager {
                 coins.RemoveAt(i);
             }
         }
-        foreach (var m in monsters) if (IsNear(m.Position, hero.Position)) m.Attack(activeTarget);
+        foreach (var m in monsters) {
+            if (IsNear(m.Position, hero.Position)) m.Attack(activeTarget);
+        }
     }
 
-    private void Render() {
+    public void RenderGame() {
         Console.SetCursorPosition(0, 0);
         StringBuilder sb = new StringBuilder();
         sb.AppendLine(new string('#', MapWidth * 2));
@@ -140,6 +133,16 @@ public class GameManager {
         Console.Write(sb.ToString());
     }
 
+    public void ShowGameOverScreen() {
+        Console.Clear();
+        Console.WriteLine("======================================");
+        Console.WriteLine("           ИГРА ОКОНЧЕНА!             ");
+        Console.WriteLine($"      Собрано золота: {hero.Gold}     ");
+        Console.WriteLine("======================================");
+        Console.WriteLine("Нажмите любую клавишу для выхода...");
+        isRunning = false;
+    }
+
     private string GetSymbolAt(int x, int y) {
         if (x == 0 || x == MapWidth - 1) return "##";
         
@@ -148,7 +151,7 @@ public class GameManager {
         var m = monsters.Find(mo => mo.Position.Y == y && mo.Position.X == x);
         if (m != null) {
             string s = m.GetSymbol();
-            if (s == "🛰") return s + " ";
+            if (s == "🛰") return s + " "; 
             return s.Length > 1 ? s : s + " ";
         }
 
@@ -166,6 +169,17 @@ public class GameManager {
         if (DateTime.Now < windExpiry) effectsLine.Append($"[Ветер 🌬️: {(int)(windExpiry - DateTime.Now).TotalSeconds + 1}с] ");
         if (DateTime.Now >= shieldExpiry && DateTime.Now >= windExpiry) effectsLine.Append("нет");
         sb.AppendLine(effectsLine.ToString().PadRight(MapWidth * 2));
+    }
+
+    private Position GetRandomEmptyPosition() {
+        while (true) {
+            int y = rng.Next(1, MapHeight - 1);
+            int x = rng.Next(1, MapWidth - 1);
+            Position pos = new Position(y, x);
+            if (world.CanMoveTo(pos) && (hero == null || (hero.Position.X != x && hero.Position.Y != y)) && !monsters.Exists(m => m.Position.X == x && m.Position.Y == y)) {
+                return pos;
+            }
+        }
     }
 
     private bool IsNear(Position p1, Position p2) => Math.Abs(p1.X - p2.X) + Math.Abs(p1.Y - p2.Y) <= 1;
