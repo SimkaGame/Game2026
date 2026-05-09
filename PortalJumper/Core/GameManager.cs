@@ -8,12 +8,14 @@ using PortalJumper.Entities;
 using PortalJumper.Maps;
 using PortalJumper.Core.Interfaces;
 using PortalJumper.Core.States;
+using PortalJumper.Core.Commands;
 
 public class GameManager {
     private static GameManager? instance;
     public static GameManager Instance => instance ??= new GameManager();
 
     private IGameState _currentState;
+    private InputHandler _inputHandler;
     private bool isRunning = true;
     private readonly int MapWidth = 40; 
     private readonly int MapHeight = 15; 
@@ -34,12 +36,9 @@ public class GameManager {
     private GameManager() {
         world = new WorldMap();
         world.Initialize(MapWidth, MapHeight);
-        
         hero = new Hero { Position = new Position(7, 15) };
-        
         _hud = new ConsoleHUD();
         _hud.Bind(hero);
-
         activeTarget = hero;
 
         monsters.Add(new Robot { Position = new Position(3, 10) });
@@ -50,20 +49,31 @@ public class GameManager {
         shieldPos = GetRandomEmptyPosition();
         windPos = GetRandomEmptyPosition();
 
+        _inputHandler = new InputHandler();
+        SetupDefaultBindings();
+
         _currentState = new GamePlayState(this);
     }
 
+    private void SetupDefaultBindings() {
+        _inputHandler.Bind(ConsoleKey.W, new MoveCommand(hero, -1, 0));
+        _inputHandler.Bind(ConsoleKey.S, new MoveCommand(hero, 1, 0));
+        _inputHandler.Bind(ConsoleKey.A, new MoveCommand(hero, 0, -1));
+        _inputHandler.Bind(ConsoleKey.D, new MoveCommand(hero, 0, 1));
+    }
+
+    public void RemapKey(ConsoleKey key, ICommand newCommand) {
+        _inputHandler.Bind(key, newCommand);
+    }
+
     public void SetState(IGameState newState) => _currentState = newState;
-    
     public int GetHeroHp() => hero.Hp;
-    
     public int GetHeroGold() => hero.Gold;
 
     public void Run() {
         Console.OutputEncoding = Encoding.UTF8;
         Console.Clear();
         Console.CursorVisible = false;
-        
         while (isRunning) {
             if (Console.KeyAvailable) _currentState.HandleInput();
             _currentState.Update();
@@ -73,17 +83,13 @@ public class GameManager {
     }
 
     public void ProcessHeroInput(ConsoleKey key) {
-        int dy = 0, dx = 0;
+        _inputHandler.HandleInput(key);
+    }
+
+    public void MoveHero(int dy, int dx) {
         int step = IsActive<SpeedDecorator>() ? 2 : 1;
+        Position nextPos = new Position(hero.Position.Y + (dy * step), hero.Position.X + (dx * step));
         
-        if (key == ConsoleKey.W) dy = -step;
-        else if (key == ConsoleKey.S) dy = step;
-        else if (key == ConsoleKey.A) dx = -step;
-        else if (key == ConsoleKey.D) dx = step;
-        
-        if (dx == 0 && dy == 0) return;
-        
-        Position nextPos = new Position(hero.Position.Y + dy, hero.Position.X + dx);
         if (world.CanMoveTo(nextPos) && !monsters.Exists(m => m.Position.X == nextPos.X && m.Position.Y == nextPos.Y)) {
             hero.Position = nextPos;
         }
@@ -92,8 +98,8 @@ public class GameManager {
     public void UpdateGameLogic() {
         if (DateTime.Now > shieldExpiry && IsActive<ShieldDecorator>()) RemoveDecorator<ShieldDecorator>();
         if (DateTime.Now > windExpiry && IsActive<SpeedDecorator>()) RemoveDecorator<SpeedDecorator>();
-        
         CheckInteractions();
+        if (hero.Hp <= 0) SetState(new GameOverState(this));
     }
 
     private void CheckInteractions() {
@@ -113,9 +119,7 @@ public class GameManager {
                 coins.RemoveAt(i);
             }
         }
-        foreach (var m in monsters) {
-            if (IsNear(m.Position, hero.Position)) m.Attack(activeTarget);
-        }
+        foreach (var m in monsters) if (IsNear(m.Position, hero.Position)) m.Attack(activeTarget);
     }
 
     public void RenderGame() {
@@ -123,9 +127,7 @@ public class GameManager {
         StringBuilder sb = new StringBuilder();
         sb.AppendLine(new string('#', MapWidth * 2));
         for (int y = 0; y < MapHeight; y++) {
-            for (int x = 0; x < MapWidth; x++) {
-                sb.Append(GetSymbolAt(x, y));
-            }
+            for (int x = 0; x < MapWidth; x++) sb.Append(GetSymbolAt(x, y));
             sb.AppendLine();
         }
         sb.AppendLine(new string('#', MapWidth * 2));
@@ -139,26 +141,21 @@ public class GameManager {
         Console.WriteLine("           ИГРА ОКОНЧЕНА!             ");
         Console.WriteLine($"      Собрано золота: {hero.Gold}     ");
         Console.WriteLine("======================================");
-        Console.WriteLine("Нажмите любую клавишу для выхода...");
         isRunning = false;
     }
 
     private string GetSymbolAt(int x, int y) {
         if (x == 0 || x == MapWidth - 1) return "##";
-        
         if (hero.Position.Y == y && hero.Position.X == x) return "🤠";
-        
         var m = monsters.Find(mo => mo.Position.Y == y && mo.Position.X == x);
         if (m != null) {
             string s = m.GetSymbol();
             if (s == "🛰") return s + " "; 
             return s.Length > 1 ? s : s + " ";
         }
-
         if (shieldPos.HasValue && shieldPos.Value.Y == y && shieldPos.Value.X == x) return "🛡️ ";
         if (windPos.HasValue && windPos.Value.Y == y && windPos.Value.X == x) return "🌬️ ";
         if (coins.Exists(c => c.Position.Y == y && c.Position.X == x)) return "💰";
-
         return world.CanMoveTo(new Position(y, x)) ? "  " : "##";
     }
 
@@ -176,9 +173,7 @@ public class GameManager {
             int y = rng.Next(1, MapHeight - 1);
             int x = rng.Next(1, MapWidth - 1);
             Position pos = new Position(y, x);
-            if (world.CanMoveTo(pos) && (hero == null || (hero.Position.X != x && hero.Position.Y != y)) && !monsters.Exists(m => m.Position.X == x && m.Position.Y == y)) {
-                return pos;
-            }
+            if (world.CanMoveTo(pos) && !monsters.Exists(m => m.Position.X == x && m.Position.Y == y)) return pos;
         }
     }
 
@@ -199,16 +194,6 @@ public class GameManager {
         if (activeTarget is T) {
             if (activeTarget is ShieldDecorator sd) activeTarget = sd.GetInner();
             else if (activeTarget is SpeedDecorator wd) activeTarget = wd.GetInner();
-        } else if (activeTarget is ShieldDecorator sd && sd.GetInner() is T) {
-            activeTarget = new ShieldDecorator(Unwrap<T>(sd.GetInner()));
-        } else if (activeTarget is SpeedDecorator wd && wd.GetInner() is T) {
-            activeTarget = new SpeedDecorator(Unwrap<T>(wd.GetInner()));
         }
-    }
-
-    private IAttackable Unwrap<T>(IAttackable inner) {
-        if (inner is ShieldDecorator sd && sd is not T) return sd;
-        if (inner is SpeedDecorator wd && wd is not T) return wd;
-        return hero;
     }
 }
