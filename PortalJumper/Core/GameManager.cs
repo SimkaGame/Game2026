@@ -9,6 +9,8 @@ using PortalJumper.Maps;
 using PortalJumper.Core.Interfaces;
 using PortalJumper.Core.States;
 using PortalJumper.Core.Commands;
+using PortalJumper.Core.DTO;
+using PortalJumper.Core.Services;
 
 public class GameManager {
     private static GameManager? instance;
@@ -60,12 +62,32 @@ public class GameManager {
         _inputHandler.Bind(ConsoleKey.S, new MoveCommand(hero, 1, 0));
         _inputHandler.Bind(ConsoleKey.A, new MoveCommand(hero, 0, -1));
         _inputHandler.Bind(ConsoleKey.D, new MoveCommand(hero, 0, 1));
+        _inputHandler.Bind(ConsoleKey.K, new SaveGameCommand(this));
+        _inputHandler.Bind(ConsoleKey.L, new LoadGameCommand(this));
     }
 
-    public void RemapKey(ConsoleKey key, ICommand newCommand) {
-        _inputHandler.Bind(key, newCommand);
+    public void SaveGame() {
+        var data = new SaveData {
+            HeroHp = hero.Hp,
+            HeroMaxHp = hero.MaxHp,
+            HeroGold = hero.Gold,
+            HeroX = hero.Position.X,
+            HeroY = hero.Position.Y
+        };
+        SaveService.Save(data);
     }
 
+    public void LoadGame() {
+        var data = SaveService.Load();
+        if (data != null) {
+            hero.MaxHp = data.HeroMaxHp;
+            hero.Hp = data.HeroHp;
+            hero.Gold = data.HeroGold;
+            hero.Position = new Position(data.HeroY, data.HeroX);
+        }
+    }
+
+    public void RemapKey(ConsoleKey key, ICommand newCommand) => _inputHandler.Bind(key, newCommand);
     public void SetState(IGameState newState) => _currentState = newState;
     public int GetHeroHp() => hero.Hp;
     public int GetHeroGold() => hero.Gold;
@@ -82,9 +104,7 @@ public class GameManager {
         }
     }
 
-    public void ProcessHeroInput(ConsoleKey key) {
-        _inputHandler.HandleInput(key);
-    }
+    public void ProcessHeroInput(ConsoleKey key) => _inputHandler.HandleInput(key);
 
     public void MoveHero(int dy, int dx) {
         int step = IsActive<SpeedDecorator>() ? 2 : 1;
