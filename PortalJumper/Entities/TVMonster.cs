@@ -1,4 +1,3 @@
-using PortalJumper.Core;
 using PortalJumper.Core.Interfaces;
 using PortalJumper.Core.Strategies;
 
@@ -11,8 +10,4 @@ public class TVMonster : Monster
     }
 
     public override string GetSymbol() => "📺";
-
-    public override void Move()
-    {
-    }
 }

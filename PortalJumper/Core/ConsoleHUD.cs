@@ -12,9 +12,25 @@ public class ConsoleHUD
 
     private void DisplayHealthUpdate(int current, int max)
     {
-        Console.SetCursorPosition(0, 22);
-        string bar = new string('|', current / 10);
-        string dots = new string('.', (max - current) / 10);
-        Console.WriteLine($"[OBSERVER NOTIFICATION]: HP Changed to {current}! [{bar}{dots}]");
+        try
+        {
+            int hudLine = 17; 
+            
+            if (hudLine < Console.BufferHeight && hudLine >= 0)
+            {
+                Console.SetCursorPosition(0, hudLine);
+                
+                int barSize = Math.Max(0, current / 10);
+                int dotSize = Math.Max(0, (max - current) / 10);
+                
+                string bar = new string('|', barSize);
+                string dots = new string('.', dotSize);
+                
+                Console.Write($"[OBSERVER NOTIFICATION]: HP Changed to {current}! [{bar}{dots}]".PadRight(Console.WindowWidth - 1));
+            }
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+        }
     }
 }
