@@ -1,10 +1,8 @@
-namespace PortalJumper.Core;
-
 using System;
 using System.Collections.Generic;
 using PortalJumper.Core.Interfaces;
-using PortalJumper.Core.Commands;
-using PortalJumper.Entities;
+
+namespace PortalJumper.Core;
 
 public class InputHandler
 {
@@ -17,9 +15,9 @@ public class InputHandler
 
     public void HandleInput(ConsoleKey key)
     {
-        if (_keyBindings.ContainsKey(key))
+        if (_keyBindings.TryGetValue(key, out var command))
         {
-            _keyBindings[key].Execute();
+            command.Execute();
         }
     }
 }

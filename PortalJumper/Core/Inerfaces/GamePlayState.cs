@@ -10,12 +10,30 @@ public class GamePlayState : IGameState
 
     public void HandleInput()
     {
-        var key = Console.ReadKey(true).Key;
+        var keyInfo = Console.ReadKey(true);
+        var key = keyInfo.Key;
+
         if (key == ConsoleKey.Escape)
         {
             _gm.SetState(new PauseState(_gm));
             return;
         }
+
+        if (key == ConsoleKey.NoName || key == 0)
+        {
+            char ch = char.ToLower(keyInfo.KeyChar);
+            key = ch switch
+            {
+                'w' or 'ц' => ConsoleKey.W,
+                's' or 'ы' => ConsoleKey.S,
+                'a' or 'ф' => ConsoleKey.A,
+                'd' or 'в' => ConsoleKey.D,
+                'k' or 'л' => ConsoleKey.K,
+                'l' or 'д' => ConsoleKey.L,
+                _ => key
+            };
+        }
+
         _gm.ProcessHeroInput(key);
     }
 
@@ -35,7 +53,8 @@ public class PauseState : IGameState
 
     public void HandleInput()
     {
-        if (Console.ReadKey(true).Key == ConsoleKey.Escape)
+        var keyInfo = Console.ReadKey(true);
+        if (keyInfo.Key == ConsoleKey.Escape || keyInfo.KeyChar == '')
             _gm.SetState(new GamePlayState(_gm));
     }
 
@@ -56,7 +75,10 @@ public class GameOverState : IGameState
 
     public void HandleInput()
     {
-        if (Console.KeyAvailable) Console.ReadKey(true);
+        while (Console.KeyAvailable) 
+        {
+            Console.ReadKey(true);
+        }
     }
 
     public void Update() { }

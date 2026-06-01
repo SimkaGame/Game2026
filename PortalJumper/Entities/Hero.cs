@@ -24,7 +24,7 @@ public class Hero : IAttackable
         }
     }
 
-    public string GetSymbol() => "🤠";
+    public string GetSymbol() => "🏃";
 
     public void TakeDamage(int damage)
     {
